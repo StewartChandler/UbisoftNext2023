@@ -185,6 +185,12 @@
     <ClInclude Include="App\TextureLoader.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="src\Vec.h" />
+    <ClInclude Include="src\Mat.h" />
+    <ClInclude Include="src\Mesh.h" />
+    <ClInclude Include="src\Camera.h" />
+    <ClInclude Include="src\Brick.h" />
+    <ClInclude Include="src\Bomb.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App\app.cpp" />
@@ -193,6 +199,10 @@
     <ClCompile Include="App\SimpleSound.cpp" />
     <ClCompile Include="App\SimpleSprite.cpp" />
     <ClCompile Include="App\TextureLoader.cpp" />
+    <ClCompile Include="src\Vec.cpp" />
+    <ClCompile Include="src\Mat.cpp" />
+    <ClCompile Include="src\Mesh.cpp" />
+    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="GameTest.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

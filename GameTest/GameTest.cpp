@@ -7,19 +7,30 @@
 #include <math.h>  
 //------------------------------------------------------------------------
 #include "app\app.h"
+#include "src\Mesh.h"
+#include "src\Vec.h"
+#include "src\Camera.h"
+#include "src\Brick.h"
+#include "src\Bomb.h"
 //------------------------------------------------------------------------
 
-//------------------------------------------------------------------------
-// Eample data....
-//------------------------------------------------------------------------
-CSimpleSprite *testSprite;
-enum
-{
-	ANIM_FORWARDS,
-	ANIM_BACKWARDS,
-	ANIM_LEFT,
-	ANIM_RIGHT,
-};
+Mesh* monkey;
+Mesh* cubes;
+Mesh* cube;
+Mesh* arena;
+std::shared_ptr<Mesh> brick;
+std::shared_ptr<Mesh> sphere;
+Camera* camera;
+
+std::vector<Brick> bricks;
+std::vector<Bomb> bombs;
+
+Vec3F player_pos {0.0f};
+
+Mat4F player_model;
+
+float counter = -5.0f;
+
 //------------------------------------------------------------------------
 
 //------------------------------------------------------------------------
@@ -27,17 +38,30 @@ enum
 //------------------------------------------------------------------------
 void Init()
 {
-	//------------------------------------------------------------------------
-	// Example Sprite Code....
-	testSprite = App::CreateSprite(".\\TestData\\Test.bmp", 8, 4);
-	testSprite->SetPosition(400.0f, 400.0f);
-	float speed = 1.0f / 15.0f;
-	testSprite->CreateAnimation(ANIM_BACKWARDS, speed, { 0,1,2,3,4,5,6,7 });
-	testSprite->CreateAnimation(ANIM_LEFT, speed, { 8,9,10,11,12,13,14,15 });
-	testSprite->CreateAnimation(ANIM_RIGHT, speed, { 16,17,18,19,20,21,22,23 });
-	testSprite->CreateAnimation(ANIM_FORWARDS, speed, { 24,25,26,27,28,29,30,31 });
-	testSprite->SetScale(1.0f);
-	//------------------------------------------------------------------------
+	monkey = new Mesh(".\\res\\mesh\\monkey.obj");
+	cube = new Mesh(".\\res\\mesh\\cube.obj");
+	arena = new Mesh(".\\res\\mesh\\arena2.obj");
+	sphere = std::make_shared<Mesh>(".\\res\\mesh\\sphere.obj");
+	brick = std::make_shared<Mesh>(".\\res\\mesh\\other_bricks.obj");
+	camera = new Camera({0, 20, -2}, {0, 0, 0});
+	cubes = new Mesh();
+
+	// initialize bricks
+	for (int i = 0; i < 7; i++)
+		bricks.emplace_back(brick, Vec3F{6.0f - 2.0f * i, 0.0f, 7.0f});
+	for (int i = 0; i < 7; i++) {
+		for (int j = 0; j < 8; j++) {
+			bricks.emplace_back(brick, Vec3F{7.0f - 2.0f * j, 0.0f, 6.0f - 2.0f * i});
+		}
+		for (int j = 0; j < 7; j++) 
+			bricks.emplace_back(brick, Vec3F{6.0f - 2.0f * j, 0.0f, 5.0f - 2.0f * i});
+	}
+	bricks[48].active = false;
+	bricks[55].active = false;
+	bricks[56].active = false;
+	bricks[63].active = false;
+
+	player_model = AffineRotation(3.1415f);
 }
 
 //------------------------------------------------------------------------
@@ -46,67 +70,39 @@ void Init()
 //------------------------------------------------------------------------
 void Update(float deltaTime)
 {
-	//------------------------------------------------------------------------
-	// Example Sprite Code....
-	testSprite->Update(deltaTime);
-	if (App::GetController().GetLeftThumbStickX() > 0.5f)
-	{
-		testSprite->SetAnimation(ANIM_RIGHT);
-		float x, y;
-		testSprite->GetPosition(x, y);
-		x += 1.0f;
-		testSprite->SetPosition(x, y);
+	Vec3F motion {0.0f};
+	if (App::GetController().GetLeftThumbStickX() > 0.5f) {
+		motion[0] -= 1;
+	} else if (App::GetController().GetLeftThumbStickX() < -0.5f) {
+		motion[0] += 1;
 	}
-	if (App::GetController().GetLeftThumbStickX() < -0.5f)
-	{
-		testSprite->SetAnimation(ANIM_LEFT);
-		float x, y;
-		testSprite->GetPosition(x, y);
-		x -= 1.0f;
-		testSprite->SetPosition(x, y);
+	if (App::GetController().GetLeftThumbStickY() > 0.5f) {
+		motion[2] -= 1;
+	} else if (App::GetController().GetLeftThumbStickY() < -0.5f) {
+		motion[2] += 1;
 	}
-	if (App::GetController().GetLeftThumbStickY() > 0.5f)
-	{
-		testSprite->SetAnimation(ANIM_FORWARDS);
-		float x, y;
-		testSprite->GetPosition(x, y);
-		y += 1.0f;
-		testSprite->SetPosition(x, y);
+
+	if (App::GetController().CheckButton(XINPUT_GAMEPAD_A, true)
+	|| counter < 0) {
+		if (bombs.size() == 0) {
+			bombs.emplace_back(sphere, player_pos);
+
+		}
+		counter = 10.0f;
 	}
-	if (App::GetController().GetLeftThumbStickY() < -0.5f)
-	{
-		testSprite->SetAnimation(ANIM_BACKWARDS);
-		float x, y;
-		testSprite->GetPosition(x, y);
-		y -= 1.0f;
-		testSprite->SetPosition(x, y);
+	counter -= deltaTime;
+
+	if (motion[0] != 0.0f || motion[2] != 0.0f) {
+		float phi = atanf(- motion[0] / motion[2]);
+		motion.normalize();
+		player_pos += motion * deltaTime / 100;
+		
+		player_model = AffineTranslation(player_pos) * AffineRotation(phi);
+
 	}
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_DPAD_UP, false))
-	{
-		testSprite->SetScale(testSprite->GetScale() + 0.1f);
-	}
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_DPAD_DOWN, false))
-	{
-		testSprite->SetScale(testSprite->GetScale() - 0.1f);
-	}
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_DPAD_LEFT, false))
-	{
-		testSprite->SetAngle(testSprite->GetAngle() + 0.1f);
-	}
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_DPAD_RIGHT, false))
-	{
-		testSprite->SetAngle(testSprite->GetAngle() - 0.1f);
-	}
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_A, true))
-	{
-		testSprite->SetAnimation(-1);
-	}
-	//------------------------------------------------------------------------
-	// Sample Sound.
-	//------------------------------------------------------------------------
-	if (App::GetController().CheckButton(XINPUT_GAMEPAD_B, true))
-	{
-		App::PlaySound(".\\TestData\\Test.wav");
+
+	for (Bomb& b : bombs) {
+		b.update(deltaTime);
 	}
 }
 
@@ -116,35 +112,24 @@ void Update(float deltaTime)
 //------------------------------------------------------------------------
 void Render()
 {	
-	//------------------------------------------------------------------------
-	// Example Sprite Code....
-	testSprite->Draw();
-	//------------------------------------------------------------------------
+	Mat4F ident {
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f,
+	};
+	camera->lookat(player_pos + Vec3F{0.0f, 6.0f, -1.0f}, player_pos);
+	camera->render(*arena, {1.0f, 1.0f, 1.0f}, {0.6f, 0.6f, 0.6f}, ident);
 
-	//------------------------------------------------------------------------
-	// Example Text.
-	//------------------------------------------------------------------------
-	App::Print(100, 100, "Sample Text");
-
-	//------------------------------------------------------------------------
-	// Example Line Drawing.
-	//------------------------------------------------------------------------
-	static float a = 0.0f;
-	float r = 1.0f;
-	float g = 1.0f;
-	float b = 1.0f;
-	a += 0.1f;
-	for (int i = 0; i < 20; i++)
-	{
-
-		float sx = 200 + sinf(a + i * 0.1f)*60.0f;
-		float sy = 200 + cosf(a + i * 0.1f)*60.0f;
-		float ex = 700 - sinf(a + i * 0.1f)*60.0f;
-		float ey = 700 - cosf(a + i * 0.1f)*60.0f;
-		g = (float)i / 20.0f;
-		b = (float)i / 20.0f;
-		App::DrawLine(sx, sy, ex, ey,r,g,b);
+	for (Brick& b : bricks) {
+		b.render(*camera);
 	}
+
+	for (Bomb& b : bombs) {
+		b.render(*camera);
+	}
+
+	camera->render(*monkey, {0.5f, 0.8f, 0.6f}, {0.3f, 0.7f, 0.4f}, player_model);
 }
 //------------------------------------------------------------------------
 // Add your shutdown code here. Called when the APP_QUIT_KEY is pressed.
@@ -152,8 +137,9 @@ void Render()
 //------------------------------------------------------------------------
 void Shutdown()
 {	
-	//------------------------------------------------------------------------
-	// Example Sprite Code....
-	delete testSprite;
-	//------------------------------------------------------------------------
+	delete camera;
+	delete monkey;
+	delete cube;
+	delete cubes;
+	delete arena;
 }
